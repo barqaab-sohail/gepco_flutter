@@ -4,16 +4,18 @@ import 'package:gepco_front_flutter/services/api/base_api.dart';
 import 'package:gepco_front_flutter/services/api/end_points.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:gepco_front_flutter/models/user_model.dart';
-import 'package:gepco_front_flutter/views/earthing_table_view.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:gepco_front_flutter/models/circle_model.dart';
+import 'package:gepco_front_flutter/views/selection_view.dart';
 
 class LoginController extends GetxController {
   var emailController = TextEditingController();
   var passwordController = TextEditingController();
   var isLoading = false.obs;
   var rememberMe = false.obs;
+  var circles = <Circle>[].obs; // Divisions List
 
   final storage = GetStorage();
 
@@ -66,8 +68,14 @@ class LoginController extends GetxController {
         await prefs.setString("email", data["email"]);
         await prefs.setString("picture", data["picture"]);
         await prefs.setString("token", data["token"]);
+        print(data['circles']);
+        circles.value =
+            (data['circles'] as List)
+                .map((item) => Circle.fromJson(item))
+                .toList();
 
-        Get.to(() => EarthingTableView());
+        // Get.to(() => EarthingTableView());
+        Get.to(() => SelectionView());
       } else {
         print(data.toString());
         Get.snackbar(

@@ -8,6 +8,8 @@ import 'package:gepco_front_flutter/services/api/base_api.dart';
 import 'package:gepco_front_flutter/services/api/end_points.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import 'package:gepco_front_flutter/widgets/custom_app_bar.dart';
 
 class EarthingTableView extends StatefulWidget {
   const EarthingTableView({super.key});
@@ -195,49 +197,14 @@ class _EarthingTableViewState extends State<EarthingTableView> {
       borderSide: const BorderSide(width: 2.0, style: BorderStyle.solid),
       borderRadius: BorderRadius.circular(5),
     );
-
+    final Map<String, dynamic> divisionData = Get.arguments;
+    final String divisionName = divisionData['name']; // Extract Division Name
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.blue,
-        elevation: 0,
-        title: const Text(
-          'GEPCO Data Upload Form',
-          style: TextStyle(color: Colors.white),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == "logout") {
-                  // Call your logout function here
-                  _logout();
-                  print("User logged out");
-                }
-              },
-              itemBuilder:
-                  (context) => [
-                    PopupMenuItem(
-                      value: "logout",
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 10),
-                          Text("Logout", style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-              child: CircleAvatar(
-                backgroundImage:
-                    pictureUrl != null && pictureUrl!.isNotEmpty
-                        ? NetworkImage(pictureUrl!)
-                        : AssetImage("images/default.png") as ImageProvider,
-              ),
-            ),
-          ),
-        ],
+      appBar: CustomAppBar(
+        title: divisionName,
+        pictureUrl: pictureUrl,
+        onLogout: _logout,
       ),
       body: Center(
         child: Padding(
