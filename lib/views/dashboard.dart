@@ -13,8 +13,8 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   Widget build(BuildContext context) {
     // Remove any Scaffold from the body content
-    return ScaffoldWithDrawer(
-      title: 'Dashboard', // Single title
+    return Scaffold(
+      // Single title
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

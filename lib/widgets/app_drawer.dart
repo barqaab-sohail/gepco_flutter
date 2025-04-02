@@ -21,7 +21,7 @@ class AppDrawer extends StatelessWidget {
                   _mainController.userPicture.value,
                 ),
               ),
-              decoration: BoxDecoration(color: Theme.of(context).primaryColor),
+              decoration: BoxDecoration(color: Colors.blue),
             ),
           ),
           ListTile(
@@ -29,6 +29,14 @@ class AppDrawer extends StatelessWidget {
             title: Text('Add New Record'),
             onTap: () {
               Get.toNamed('/add-record');
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.add),
+            title: Text('Dashboard'),
+            onTap: () {
+              Get.toNamed('/dashboard');
             },
           ),
           Divider(),

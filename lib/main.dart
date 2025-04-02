@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
           name: '/add-record',
           page:
               () => ScaffoldWithDrawer(
-                title: 'Add Record',
+                title: 'Add New Record',
                 body: SelectionView(),
               ),
         ),

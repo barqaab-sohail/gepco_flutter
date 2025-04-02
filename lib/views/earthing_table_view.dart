@@ -23,6 +23,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
   File? _image;
   String? userName;
   String? pictureUrl;
+  String? token;
   TextEditingController latitudeController = TextEditingController();
   TextEditingController longitudeController = TextEditingController();
   TextEditingController feederNameController = TextEditingController();
@@ -52,6 +53,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     return {
       "userName": prefs.getString("userName"),
       "picture": prefs.getString("picture"),
+      "token": prefs.getString("token"),
     };
   }
 
@@ -149,6 +151,10 @@ class _EarthingTableViewState extends State<EarthingTableView> {
       'POST',
       Uri.parse(BaseApi.baseURL + EndPoints.save),
     );
+    // Add the Bearer token to headers
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] =
+        'application/json'; // Add other headers if needed
 
     request.fields['latitude'] = latitudeController.text;
     request.fields['longitude'] = longitudeController.text;

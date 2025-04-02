@@ -17,7 +17,11 @@ class ScaffoldWithDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title), actions: actions),
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.blue,
+        actions: actions,
+      ),
       drawer: AppDrawer(),
       body: body, // This should NOT contain another Scaffold
     );

@@ -150,11 +150,11 @@ class _SelectionViewState extends State<SelectionView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Selection View',
-        pictureUrl: pictureUrl,
-        onLogout: _logout,
-      ),
+      // appBar: CustomAppBar(
+      //   title: 'Selection View',
+      //   pictureUrl: pictureUrl,
+      //   onLogout: _logout,
+      // ),
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(

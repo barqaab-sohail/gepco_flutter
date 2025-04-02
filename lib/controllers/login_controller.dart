@@ -69,7 +69,7 @@ class LoginController extends GetxController {
         await prefs.setString("email", data["email"]);
         await prefs.setString("picture", data["picture"]);
         await prefs.setString("token", data["token"]);
-        print(data['circles']);
+
         circles.value =
             (data['circles'] as List)
                 .map((item) => Circle.fromJson(item))
