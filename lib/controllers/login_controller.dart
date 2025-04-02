@@ -1,3 +1,4 @@
+import 'package:gepco_front_flutter/views/dashboard.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:gepco_front_flutter/services/api/base_api.dart';
@@ -75,7 +76,8 @@ class LoginController extends GetxController {
                 .toList();
 
         // Get.to(() => EarthingTableView());
-        Get.to(() => SelectionView());
+        Get.toNamed('/dashboard');
+        //Get.to(() => DashboardView());
       } else {
         print(data.toString());
         Get.snackbar(
