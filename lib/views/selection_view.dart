@@ -13,6 +13,7 @@ import 'package:gepco_front_flutter/services/api/base_api.dart';
 import 'package:gepco_front_flutter/services/api/end_points.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:dropdown_search/dropdown_search.dart';
 
 class SelectionView extends StatefulWidget {
   @override
@@ -26,6 +27,7 @@ class _SelectionViewState extends State<SelectionView> {
   dynamic selectedSubDivision;
   dynamic selectedFeeder;
   String? pictureUrl;
+  String? token;
   String? userName;
   List<dynamic> divisions = [];
   List<dynamic> subDivisions = [];
@@ -39,6 +41,7 @@ class _SelectionViewState extends State<SelectionView> {
     setState(() {
       userName = userData["userName"] ?? "Guest";
       pictureUrl = userData["picture"] ?? "https://via.placeholder.com/50";
+      token = userData['token'];
     });
   }
 
@@ -47,6 +50,7 @@ class _SelectionViewState extends State<SelectionView> {
     return {
       "userName": prefs.getString("userName"),
       "picture": prefs.getString("picture"),
+      "token": prefs.getString("token"),
     };
   }
 
@@ -64,6 +68,10 @@ class _SelectionViewState extends State<SelectionView> {
     try {
       final response = await http.get(
         Uri.parse('${BaseApi.baseURL}$endpoint/$parentId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -151,22 +159,30 @@ class _SelectionViewState extends State<SelectionView> {
         padding: EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Circle Dropdown
+            // Circle DropdownSearch
             Obx(() {
               if (loginController.circles.isEmpty) {
                 return Center(child: CircularProgressIndicator());
               }
-              return DropdownButton<Circle>(
-                isExpanded: true,
-                value: selectedCircle,
-                hint: Text("Select Circle"),
-                items:
-                    loginController.circles.map((Circle circle) {
-                      return DropdownMenuItem<Circle>(
-                        value: circle,
-                        child: Text(circle.name ?? ''),
-                      );
-                    }).toList(),
+              return DropdownSearch<Circle>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: TextFieldProps(
+                    decoration: InputDecoration(
+                      hintText: "Search circle...",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                items: (filter, infiniteScrollProps) => loginController.circles,
+                compareFn: (item1, item2) => item1.id == item2.id,
+                itemAsString: (Circle circle) => circle.name ?? '',
+                decoratorProps: DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Select Circle",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 onChanged: (Circle? newValue) {
                   setState(() {
                     selectedCircle = newValue;
@@ -178,24 +194,33 @@ class _SelectionViewState extends State<SelectionView> {
                     loadDivisions(newValue.id.toString());
                   }
                 },
+                selectedItem: selectedCircle,
               );
             }),
             SizedBox(height: 20),
 
-            // Division Dropdown
+            // Division DropdownSearch
             isLoadingDivisions
                 ? CircularProgressIndicator()
-                : DropdownButton<dynamic>(
-                  isExpanded: true,
-                  value: selectedDivision,
-                  hint: Text("Select Division"),
-                  items:
-                      divisions.map((division) {
-                        return DropdownMenuItem<dynamic>(
-                          value: division,
-                          child: Text(division['name'] ?? ''),
-                        );
-                      }).toList(),
+                : DropdownSearch<dynamic>(
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: "Search division...",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  items: (filter, infiniteScrollProps) => divisions,
+                  compareFn: (item1, item2) => item1['id'] == item2['id'],
+                  itemAsString: (item) => item['name'] ?? '',
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      labelText: "Select Division",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   onChanged: (newValue) {
                     setState(() {
                       selectedDivision = newValue;
@@ -206,23 +231,32 @@ class _SelectionViewState extends State<SelectionView> {
                       loadSubDivisions(newValue['id'].toString());
                     }
                   },
+                  selectedItem: selectedDivision,
                 ),
             SizedBox(height: 20),
 
-            // SubDivision Dropdown
+            // SubDivision DropdownSearch
             isLoadingSubDivisions
                 ? CircularProgressIndicator()
-                : DropdownButton<dynamic>(
-                  isExpanded: true,
-                  value: selectedSubDivision,
-                  hint: Text("Select Sub Division"),
-                  items:
-                      subDivisions.map((subDivision) {
-                        return DropdownMenuItem<dynamic>(
-                          value: subDivision,
-                          child: Text(subDivision['name'] ?? ''),
-                        );
-                      }).toList(),
+                : DropdownSearch<dynamic>(
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: "Search sub division...",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  items: (filter, infiniteScrollProps) => subDivisions,
+                  compareFn: (item1, item2) => item1['id'] == item2['id'],
+                  itemAsString: (item) => item['name'] ?? '',
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      labelText: "Select Sub Division",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   onChanged: (newValue) {
                     setState(() {
                       selectedSubDivision = newValue;
@@ -232,28 +266,38 @@ class _SelectionViewState extends State<SelectionView> {
                       loadFeeders(newValue['id'].toString());
                     }
                   },
+                  selectedItem: selectedSubDivision,
                 ),
             SizedBox(height: 20),
 
-            // Feeder Dropdown
+            // Feeder DropdownSearch
             isLoadingFeeders
                 ? CircularProgressIndicator()
-                : DropdownButton<dynamic>(
-                  isExpanded: true,
-                  value: selectedFeeder,
-                  hint: Text("Select Feeder"),
-                  items:
-                      feeders.map((feeder) {
-                        return DropdownMenuItem<dynamic>(
-                          value: feeder,
-                          child: Text(feeder['name'] ?? ''),
-                        );
-                      }).toList(),
+                : DropdownSearch<dynamic>(
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: "Search feeder...",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  items: (filter, infiniteScrollProps) => feeders,
+                  compareFn: (item1, item2) => item1['id'] == item2['id'],
+                  itemAsString: (item) => item['name'] ?? '',
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      labelText: "Select Feeder",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   onChanged: (newValue) {
                     setState(() {
                       selectedFeeder = newValue;
                     });
                   },
+                  selectedItem: selectedFeeder,
                 ),
             SizedBox(height: 40),
 
