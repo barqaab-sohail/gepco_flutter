@@ -178,6 +178,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Upload failed!')));
+      print(request.headers['Authorization'].toString());
     }
   }
 
@@ -185,9 +186,8 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     final userData = await getUserData();
     setState(() {
       userName = userData["userName"] ?? "Guest";
-      pictureUrl =
-          userData["picture"] ??
-          "https://via.placeholder.com/50"; // Default image
+      pictureUrl = userData["picture"] ?? "https://via.placeholder.com/50";
+      token = userData["token"]; // Default image
     });
   }
 

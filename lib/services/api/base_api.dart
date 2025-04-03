@@ -1,5 +1,5 @@
 class BaseApi {
-  static final String url = "http://barqaab.pk/";
+  static final String url = "https://barqaab.pk/";
   //"https://barqaab.pk/";
   //;
 
