@@ -10,6 +10,30 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import 'package:gepco_front_flutter/widgets/custom_app_bar.dart';
+import 'dart:convert'; // Add this line with other imports
+
+// Add these model classes
+class Category {
+  final int id;
+  final String name;
+
+  Category({required this.id, required this.name});
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(id: json['id'], name: json['name']);
+  }
+}
+
+class TowerStructure {
+  final int id;
+  final String name;
+
+  TowerStructure({required this.id, required this.name});
+
+  factory TowerStructure.fromJson(Map<String, dynamic> json) {
+    return TowerStructure(id: json['id'], name: json['name']);
+  }
+}
 
 class EarthingTableView extends StatefulWidget {
   const EarthingTableView({super.key});
@@ -24,15 +48,19 @@ class _EarthingTableViewState extends State<EarthingTableView> {
   String? userName;
   String? pictureUrl;
   String? token;
-  late String feederName;
-  late String feederId;
+  String feederName = '';
+  String feederId = '';
 
-  // Controllers for all fields
+  // For dropdowns
+  List<Category> categories = [];
+  List<TowerStructure> towerStructures = [];
+  int? selectedCategoryId;
+  int? selectedTowerStructureId;
+  bool isLoading = false;
+
+  // Controllers for other fields
   TextEditingController latitudeController = TextEditingController();
   TextEditingController longitudeController = TextEditingController();
-  TextEditingController subDivisionIdController = TextEditingController();
-  TextEditingController categoryIdController = TextEditingController();
-  TextEditingController towerStructureIdController = TextEditingController();
   TextEditingController locationController = TextEditingController();
   TextEditingController tageNoController = TextEditingController();
   TextEditingController chemicalController = TextEditingController();
@@ -149,7 +177,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     });
   }
 
-  // Function to upload image and data
+  // Modify the _uploadData method to use the selected dropdown values
   Future<void> _uploadData() async {
     try {
       // First validate all required fields
@@ -160,10 +188,16 @@ class _EarthingTableViewState extends State<EarthingTableView> {
         return;
       }
 
-      // Check all required fields are filled
+      // Check dropdown selections
+      if (selectedCategoryId == null || selectedTowerStructureId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select both category and structure')),
+        );
+        return;
+      }
+
+      // Check other required fields are filled
       final requiredControllers = {
-        'Category ID': categoryIdController,
-        'Tower Structure ID': towerStructureIdController,
         'Tag No': tageNoController,
         'Chemical': chemicalController,
         'Rod': rodController,
@@ -196,14 +230,14 @@ class _EarthingTableViewState extends State<EarthingTableView> {
       request.headers['Authorization'] = 'Bearer $token';
       request.headers['Accept'] = 'application/json';
 
-      // Add all fields - EXACTLY matching Laravel expectations
+      // Add all fields - using dropdown selected values
       request.fields.addAll({
-        'feeder_id': feederId, // From Get.arguments
-        'category_id': categoryIdController.text,
-        'tower_structure_id': towerStructureIdController.text,
+        'feeder_id': feederId,
+        'category_id': selectedCategoryId.toString(),
+        'tower_structure_id': selectedTowerStructureId.toString(),
         'latitude': latitudeController.text,
         'longitude': longitudeController.text,
-        'tage_no': tageNoController.text, // Note the spelling matches Laravel
+        'tage_no': tageNoController.text,
         'chemical': chemicalController.text,
         'rod': rodController.text,
         'earth_wire': earthWireController.text,
@@ -232,6 +266,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
           context,
         ).showSnackBar(SnackBar(content: Text('Upload successful!')));
         // Clear fields...
+        _resetForm();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Upload failed! Error: $responseBody')),
@@ -254,15 +289,109 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     });
   }
 
+  void _resetForm() {
+    setState(() {
+      // Reset image
+      _image = null;
+
+      // Reset dropdowns
+      selectedCategoryId = null;
+      selectedTowerStructureId = null;
+
+      // Reset all text controllers
+      latitudeController.clear();
+      longitudeController.clear();
+      locationController.clear();
+      tageNoController.clear();
+      chemicalController.clear();
+      rodController.clear();
+      earthWireController.clear();
+      earthingBeforeController.clear();
+      earthingAfterController.clear();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadUserData();
 
-    // Get feeder data from arguments
+    // Initialize feeder data
     final Map<String, dynamic> feederData = Get.arguments;
-    feederName = feederData['name'];
-    feederId = feederData['id'].toString();
+    setState(() {
+      feederName = feederData['name'] ?? '';
+      feederId = feederData['id']?.toString() ?? '';
+    });
+
+    // Load user data and dropdowns
+    _loadUserData().then((_) {
+      _loadDropdownData();
+    });
+  }
+
+  Future<void> _loadDropdownData() async {
+    if (token == null) {
+      print('Token is null, cannot load dropdown data');
+      return;
+    }
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final uri = Uri.parse('${BaseApi.baseURL}gepco/getdata');
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          categories =
+              (data['categories'] as List)
+                  .map((item) => Category.fromJson(item))
+                  .toList();
+          towerStructures =
+              (data['towerStructures'] as List)
+                  .map((item) => TowerStructure.fromJson(item))
+                  .toList();
+        });
+      } else {
+        print(
+          'Fetching dropdown data from: $uri and $token and ${response.statusCode}',
+        ); // Debug print
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load dropdown data')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading dropdown data: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  InputDecoration _buildInputDecoration(
+    String labelText, {
+    bool isRequired = true,
+  }) {
+    return InputDecoration(
+      labelText: isRequired ? '$labelText *' : labelText,
+      labelStyle: TextStyle(
+        color: isRequired ? Colors.red : null, // Make asterisk red
+      ),
+      border: OutlineInputBorder(
+        borderSide: BorderSide(width: 2.0, style: BorderStyle.solid),
+        borderRadius: BorderRadius.circular(5),
+      ),
+    );
   }
 
   @override
@@ -279,119 +408,159 @@ class _EarthingTableViewState extends State<EarthingTableView> {
         pictureUrl: pictureUrl,
         onLogout: _logout,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Display feeder ID (read-only)
-            TextFormField(
-              initialValue: feederName,
-              decoration: InputDecoration(
-                labelText: 'Feeder Name',
-                border: border,
-                enabledBorder: border,
-                focusedBorder: border,
+      body:
+          isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Display feeder ID (read-only)
+                    TextFormField(
+                      initialValue: feederName,
+                      decoration: InputDecoration(
+                        labelText: 'Feeder Name',
+                        border: border,
+                        enabledBorder: border,
+                        focusedBorder: border,
+                      ),
+                      readOnly: true,
+                    ),
+                    SizedBox(height: 10),
+
+                    // Location fields
+                    TextFormField(
+                      controller: latitudeController,
+                      decoration: _buildInputDecoration('Latitude'),
+                      readOnly: true,
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: longitudeController,
+                      decoration: _buildInputDecoration('Longitude'),
+                      readOnly: true,
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _getCurrentLocation,
+                      child: Text('Get GPS Coordinates'),
+                    ),
+
+                    // Dropdown for Category
+                    SizedBox(height: 10),
+                    DropdownButtonFormField<int>(
+                      decoration: _buildInputDecoration('Category'),
+                      value: selectedCategoryId,
+                      items:
+                          categories.map((Category category) {
+                            return DropdownMenuItem<int>(
+                              value: category.id,
+                              child: Text(category.name),
+                            );
+                          }).toList(),
+                      onChanged: (int? newValue) {
+                        setState(() {
+                          selectedCategoryId = newValue;
+                        });
+                      },
+                      validator:
+                          (value) =>
+                              value == null ? 'Please select a category' : null,
+                    ),
+
+                    // Dropdown for Tower Structure
+                    SizedBox(height: 10),
+                    DropdownButtonFormField<int>(
+                      decoration: _buildInputDecoration('Tower Structure'),
+                      value: selectedTowerStructureId,
+                      items:
+                          towerStructures.map((TowerStructure structure) {
+                            return DropdownMenuItem<int>(
+                              value: structure.id,
+                              child: Text(structure.name),
+                            );
+                          }).toList(),
+                      onChanged: (int? newValue) {
+                        setState(() {
+                          selectedTowerStructureId = newValue;
+                        });
+                      },
+                      validator:
+                          (value) =>
+                              value == null
+                                  ? 'Please select a structure'
+                                  : null,
+                    ),
+
+                    // Other input fields
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: locationController,
+                      decoration: _buildInputDecoration(
+                        'Location',
+                        isRequired: false,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: tageNoController,
+                      decoration: _buildInputDecoration('Tag No'),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: chemicalController,
+                      decoration: _buildInputDecoration('Chemical'),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: rodController,
+                      decoration: _buildInputDecoration('Rod'),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: earthWireController,
+                      decoration: _buildInputDecoration('Earth Wire'),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: earthingBeforeController,
+                      decoration: _buildInputDecoration('Earth Before'),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      controller: earthingAfterController,
+                      decoration: _buildInputDecoration('Earth After'),
+                    ),
+
+                    // Image section
+                    SizedBox(height: 20),
+                    _image != null
+                        ? Image.file(_image!, height: 100)
+                        : Text('No Image Selected'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _pickImage(ImageSource.camera),
+                          child: Text('Camera'),
+                        ),
+                        SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () => _pickImage(ImageSource.gallery),
+                          child: Text('Gallery'),
+                        ),
+                      ],
+                    ),
+
+                    // Upload button
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _uploadData,
+                      child: Text('Upload Data'),
+                    ),
+                  ],
+                ),
               ),
-              readOnly: true,
-            ),
-            SizedBox(height: 10),
-
-            // Location fields
-            TextFormField(
-              controller: latitudeController,
-              decoration: InputDecoration(labelText: 'Latitude'),
-              readOnly: true,
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: longitudeController,
-              decoration: InputDecoration(labelText: 'Longitude'),
-              readOnly: true,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _getCurrentLocation,
-              child: Text('Get GPS Coordinates'),
-            ),
-
-            // Other input fields
-            SizedBox(height: 10),
-            TextFormField(
-              controller: subDivisionIdController,
-              decoration: InputDecoration(labelText: 'Sub Division ID'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: categoryIdController,
-              decoration: InputDecoration(labelText: 'Category ID'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: towerStructureIdController,
-              decoration: InputDecoration(labelText: 'Tower Structure ID'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: locationController,
-              decoration: InputDecoration(labelText: 'Location'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: tageNoController,
-              decoration: InputDecoration(labelText: 'Tag No'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: chemicalController,
-              decoration: InputDecoration(labelText: 'Chemical'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: rodController,
-              decoration: InputDecoration(labelText: 'Rod'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: earthWireController,
-              decoration: InputDecoration(labelText: 'Earth Wire'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: earthingBeforeController,
-              decoration: InputDecoration(labelText: 'Earthing Before'),
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: earthingAfterController,
-              decoration: InputDecoration(labelText: 'Earthing After'),
-            ),
-
-            // Image section
-            SizedBox(height: 20),
-            _image != null
-                ? Image.file(_image!, height: 100)
-                : Text('No Image Selected'),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  child: Text('Camera'),
-                ),
-                SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  child: Text('Gallery'),
-                ),
-              ],
-            ),
-
-            // Upload button
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: _uploadData, child: Text('Upload Data')),
-          ],
-        ),
-      ),
     );
   }
 }
