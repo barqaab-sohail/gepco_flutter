@@ -24,9 +24,22 @@ class _EarthingTableViewState extends State<EarthingTableView> {
   String? userName;
   String? pictureUrl;
   String? token;
+  late String feederName;
+  late String feederId;
+
+  // Controllers for all fields
   TextEditingController latitudeController = TextEditingController();
   TextEditingController longitudeController = TextEditingController();
-  TextEditingController feederNameController = TextEditingController();
+  TextEditingController subDivisionIdController = TextEditingController();
+  TextEditingController categoryIdController = TextEditingController();
+  TextEditingController towerStructureIdController = TextEditingController();
+  TextEditingController locationController = TextEditingController();
+  TextEditingController tageNoController = TextEditingController();
+  TextEditingController chemicalController = TextEditingController();
+  TextEditingController rodController = TextEditingController();
+  TextEditingController earthWireController = TextEditingController();
+  TextEditingController earthingBeforeController = TextEditingController();
+  TextEditingController earthingAfterController = TextEditingController();
 
   // Function to pick and crop image
   Future<void> _pickImage(ImageSource source) async {
@@ -136,49 +149,99 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     });
   }
 
-  // Function to upload image and coordinates
+  // Function to upload image and data
   Future<void> _uploadData() async {
-    if (_image == null ||
-        latitudeController.text.isEmpty ||
-        longitudeController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please get coordinates and select an image')),
+    try {
+      // First validate all required fields
+      if (_image == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Please select an image')));
+        return;
+      }
+
+      // Check all required fields are filled
+      final requiredControllers = {
+        'Category ID': categoryIdController,
+        'Tower Structure ID': towerStructureIdController,
+        'Tag No': tageNoController,
+        'Chemical': chemicalController,
+        'Rod': rodController,
+        'Earth Wire': earthWireController,
+        'Earthing After': earthingAfterController,
+      };
+
+      final missingFields =
+          requiredControllers.entries
+              .where((entry) => entry.value.text.isEmpty)
+              .map((entry) => entry.key)
+              .toList();
+
+      if (missingFields.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Missing required fields: ${missingFields.join(', ')}',
+            ),
+          ),
+        );
+        return;
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(BaseApi.baseURL + EndPoints.earthingDetail),
       );
-      return;
-    }
 
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse(BaseApi.baseURL + EndPoints.save),
-    );
-    // Add the Bearer token to headers
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] =
-        'application/json'; // Add other headers if needed
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
 
-    request.fields['latitude'] = latitudeController.text;
-    request.fields['longitude'] = longitudeController.text;
-    request.files.add(await http.MultipartFile.fromPath('image', _image!.path));
-
-    var response = await request.send();
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload successful!')));
-
-      setState(() {
-        // Clear all fields after successful upload
-        latitudeController.clear();
-        longitudeController.clear();
-        _image = null;
+      // Add all fields - EXACTLY matching Laravel expectations
+      request.fields.addAll({
+        'feeder_id': feederId, // From Get.arguments
+        'category_id': categoryIdController.text,
+        'tower_structure_id': towerStructureIdController.text,
+        'latitude': latitudeController.text,
+        'longitude': longitudeController.text,
+        'tage_no': tageNoController.text, // Note the spelling matches Laravel
+        'chemical': chemicalController.text,
+        'rod': rodController.text,
+        'earth_wire': earthWireController.text,
+        'earthing_after': earthingAfterController.text,
+        // Optional fields
+        'location': locationController.text,
+        'earthing_before': earthingBeforeController.text,
       });
-    } else {
-      print(Uri.parse(BaseApi.baseURL + EndPoints.save));
+
+      // Add image
+      request.files.add(
+        await http.MultipartFile.fromPath('image', _image!.path),
+      );
+
+      // Debug print
+      print('Sending fields: ${request.fields}');
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: $responseBody');
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload successful!')));
+        // Clear fields...
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed! Error: $responseBody')),
+        );
+      }
+    } catch (e) {
+      print('Exception during upload: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed!')));
-      print(request.headers['Authorization'].toString());
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
   }
 
@@ -187,7 +250,7 @@ class _EarthingTableViewState extends State<EarthingTableView> {
     setState(() {
       userName = userData["userName"] ?? "Guest";
       pictureUrl = userData["picture"] ?? "https://via.placeholder.com/50";
-      token = userData["token"]; // Default image
+      token = userData["token"];
     });
   }
 
@@ -195,6 +258,11 @@ class _EarthingTableViewState extends State<EarthingTableView> {
   void initState() {
     super.initState();
     _loadUserData();
+
+    // Get feeder data from arguments
+    final Map<String, dynamic> feederData = Get.arguments;
+    feederName = feederData['name'];
+    feederId = feederData['id'].toString();
   }
 
   @override
@@ -203,61 +271,125 @@ class _EarthingTableViewState extends State<EarthingTableView> {
       borderSide: const BorderSide(width: 2.0, style: BorderStyle.solid),
       borderRadius: BorderRadius.circular(5),
     );
-    final Map<String, dynamic> divisionData = Get.arguments;
-    final String divisionName = divisionData['name']; // Extract Division Name
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        title: divisionName,
+        title: feederName,
         pictureUrl: pictureUrl,
         onLogout: _logout,
       ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              TextFormField(
-                controller: latitudeController,
-                decoration: InputDecoration(labelText: 'Latitude'),
-                readOnly: true,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Display feeder ID (read-only)
+            TextFormField(
+              initialValue: feederName,
+              decoration: InputDecoration(
+                labelText: 'Feeder Name',
+                border: border,
+                enabledBorder: border,
+                focusedBorder: border,
               ),
-              SizedBox(height: 10),
-              TextFormField(
-                controller: longitudeController,
-                decoration: InputDecoration(labelText: 'Longitude'),
-                readOnly: true,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _getCurrentLocation,
-                child: Text('Get GPS Coordinates'),
-              ),
-              SizedBox(height: 20),
-              _image != null
-                  ? Image.file(_image!, height: 100)
-                  : Text('No Image Selected'),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    child: Text('Camera'),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    child: Text('Gallery'),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _uploadData,
-                child: Text('Upload Data'),
-              ),
-            ],
-          ),
+              readOnly: true,
+            ),
+            SizedBox(height: 10),
+
+            // Location fields
+            TextFormField(
+              controller: latitudeController,
+              decoration: InputDecoration(labelText: 'Latitude'),
+              readOnly: true,
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: longitudeController,
+              decoration: InputDecoration(labelText: 'Longitude'),
+              readOnly: true,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _getCurrentLocation,
+              child: Text('Get GPS Coordinates'),
+            ),
+
+            // Other input fields
+            SizedBox(height: 10),
+            TextFormField(
+              controller: subDivisionIdController,
+              decoration: InputDecoration(labelText: 'Sub Division ID'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: categoryIdController,
+              decoration: InputDecoration(labelText: 'Category ID'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: towerStructureIdController,
+              decoration: InputDecoration(labelText: 'Tower Structure ID'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: locationController,
+              decoration: InputDecoration(labelText: 'Location'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: tageNoController,
+              decoration: InputDecoration(labelText: 'Tag No'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: chemicalController,
+              decoration: InputDecoration(labelText: 'Chemical'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: rodController,
+              decoration: InputDecoration(labelText: 'Rod'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: earthWireController,
+              decoration: InputDecoration(labelText: 'Earth Wire'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: earthingBeforeController,
+              decoration: InputDecoration(labelText: 'Earthing Before'),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: earthingAfterController,
+              decoration: InputDecoration(labelText: 'Earthing After'),
+            ),
+
+            // Image section
+            SizedBox(height: 20),
+            _image != null
+                ? Image.file(_image!, height: 100)
+                : Text('No Image Selected'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  child: Text('Camera'),
+                ),
+                SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  child: Text('Gallery'),
+                ),
+              ],
+            ),
+
+            // Upload button
+            SizedBox(height: 20),
+            ElevatedButton(onPressed: _uploadData, child: Text('Upload Data')),
+          ],
         ),
       ),
     );

@@ -6,5 +6,4 @@ class EndPoints {
   static const String divisions = 'gepco/divisions';
   static const String subdivisions = 'gepco/subdivisions';
   static const String feeders = 'gepco/feeders';
-  static const String save = 'gepco/save';
 }
