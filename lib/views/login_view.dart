@@ -3,6 +3,7 @@ import 'package:gepco_front_flutter/utils/extensions.dart';
 import 'package:get/get.dart';
 import 'package:gepco_front_flutter/controllers/login_controller.dart';
 import 'package:gepco_front_flutter/widgets/custom_form_field.dart';
+import 'package:flutter/services.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -23,6 +24,15 @@ class _LoginViewState extends State<LoginView> {
         backgroundColor: Colors.blue,
         elevation: 0,
         title: const Text('Login Page', style: TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () {
+              SystemNavigator.pop(); // For Android
+              // exit(0); // For iOS (requires import 'dart:io')
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

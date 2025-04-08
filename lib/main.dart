@@ -36,6 +36,7 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'My App',
       initialRoute: '/login',
+      debugShowCheckedModeBanner: false,
       getPages: [
         GetPage(name: '/login', page: () => LoginView()),
         GetPage(
